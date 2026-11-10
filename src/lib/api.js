@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { desktop } from './desktop.js';
 
 /**
  * Backend API mijozi. Frontendda hech qanday Sam-Vision tokeni yoki maxfiy
@@ -36,6 +37,40 @@ export const tokenStore = {
   },
 };
 
+/**
+ * PIN bilan kirish uchun qurilma kaliti.
+ * Windows ilovasida — ilovaning o‘zida (Windows himoyasi bilan shifrlangan), brauzerda — localStorage.
+ */
+const DEVICE_KEY = 'sv_device_token';
+export const deviceStore = {
+  async get() {
+    if (desktop?.deviceToken) return (await desktop.deviceToken.get()) || null;
+    try {
+      return localStorage.getItem(DEVICE_KEY);
+    } catch {
+      return null;
+    }
+  },
+  async set(token) {
+    if (desktop?.deviceToken) return desktop.deviceToken.set(token);
+    try {
+      localStorage.setItem(DEVICE_KEY, token);
+    } catch {
+      /* e'tiborsiz */
+    }
+    return undefined;
+  },
+  async clear() {
+    if (desktop?.deviceToken) return desktop.deviceToken.clear();
+    try {
+      localStorage.removeItem(DEVICE_KEY);
+    } catch {
+      /* e'tiborsiz */
+    }
+    return undefined;
+  },
+};
+
 let onUnauthorized = null;
 export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
@@ -54,7 +89,9 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const url = error.config?.url ?? '';
-    if (status === 401 && !url.startsWith('/auth/login') && !url.startsWith('/public')) {
+    // Login, PIN va qayta tekshiruvdagi 401 — "noto‘g‘ri parol/PIN", sessiya tugagani emas
+    const credentialCheck = ['/auth/login', '/auth/pin/', '/auth/reauth', '/public'].some((p) => url.startsWith(p));
+    if (status === 401 && !credentialCheck) {
       tokenStore.clear();
       onUnauthorized?.();
     }

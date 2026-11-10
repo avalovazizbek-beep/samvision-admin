@@ -38,17 +38,18 @@ yo‘naltiriladi. `.env` sozlamalari:
 - `VITE_PUBLIC_SITE_URL` — ro‘yxatdan o‘tish sayti havolasi;
 - `VITE_DEV_BACKEND`.
 
-Ro‘yxatdan o‘tish sayti bilan bitta yo‘l ostida joylash uchun backend repo’sidagi `deploy/publish-web.sh`
-skriptidan foydalaning. Admin fayllari `admin-assets/` papkasiga yig‘iladi, shuning uchun saytlar bir-biriga
-to‘qnashmaydi.
+Asosiy admin — Windows ilovasi (pastda). Veb-versiya serverga joylanmagan.
 
 ## Windows ilovasi — «Sam-Vision Admin» (`desktop/`)
 
-- Birinchi ochilishda **server manzili** so‘raladi va tekshiriladi. Masalan `https://tyutorkpi.sies.uz/samvision`
-  (yo‘l ostida joylanganda), `https://admin.example.uz` yoki `http://192.168.1.10:4800` (backend’ning o‘zi).
-  Ilova `<manzil>/api/...` ga murojaat qiladi.
-- Ilova ochilganda va har 30 daqiqada yangi versiyani tekshiradi. Yangisi bo‘lsa, «**Yangilash**» →
-  «**Qayta ishga tushirish**» chiqadi. Qayta o‘rnatish shart emas, sozlamalar saqlanadi.
+- Server manzili dasturga qotirilgan (`desktop/package.json` → `"samvision".serverUrl`) — hech narsa so‘ralmaydi.
+- **Kirish:** birinchi marta login + parol, so‘ng shu kompyuter uchun **4 xonali PIN** o‘rnatiladi. Keyingi
+  safar faqat PIN. PIN serverda tekshiriladi va kompyuterga bog‘langan (kalit Windows himoyasi bilan shifrlangan):
+  5 marta xato terilsa bekor bo‘ladi va yana login + parol so‘raladi. «PIN kodni unutdingizmi?» — xuddi shunday.
+- **Integratsiya** bo‘limi yopiq: administrator login va parolini qayta kiritgandan keyin 10 daqiqaga ochiladi.
+- **Yangilanish:** ilova ochilganda va har 30 daqiqada GitHub Releases'ni tekshiradi. Yangisi bo‘lsa
+  «Yangi versiya mavjud — **Yangilash**» chiqadi. Bosilsa yuklab olinadi, o‘zi o‘rnatiladi va dastur qayta ochiladi.
+  O‘chirib qayta o‘rnatish shart emas — sozlamalar va PIN saqlanadi.
 
 **Lokal sinash (exe yig‘masdan):**
 ```bash
@@ -63,14 +64,12 @@ npm run dev                  # interfeys Vite dev serveridan (npm run dev ildizd
 
 **Yangi versiya chiqarish (avtomatik yangilanish):**
 ```bash
-# desktop/package.json → "version": "1.0.1"
-git commit -am "Admin ilovasi 1.0.1"
-git tag v1.0.1
-git push && git push --tags
+# 1. desktop/package.json → "version" ni oshiring (masalan 1.0.2)
+git commit -am "Admin ilovasi 1.0.2" && git push
+cd desktop && npm run release      # exe yig‘iladi va GitHub Releases'ga v1.0.2 bo‘lib chiqadi
 ```
-GitHub Actions ([.github/workflows/desktop-release.yml](.github/workflows/desktop-release.yml)) exe’ni yig‘adi va
-**Releases** bo‘limiga qo‘yadi. O‘rnatilgan ilovalarda «Yangilash» chiqadi. Repo ochiq bo‘lgani uchun ilovalar
-relizni tokensiz topadi.
+Token `gh auth token` dan olinadi (yoki `GH_TOKEN`). Repo ochiq bo‘lgani uchun o‘rnatilgan ilovalar relizni tokensiz
+topadi va «Yangilash» ni ko‘rsatadi. GitHub Actions orqali chiqarish uchun: [desktop/ci/desktop-release.yml](desktop/ci/desktop-release.yml).
 
 Exe yangilash faqat admin interfeysi yoki ilovaning o‘zi o‘zgarganda kerak. Backend o‘zgarishlari uchun serverda
 backend’ni yangilash yetarli.
@@ -81,14 +80,13 @@ backend’ni yangilash yetarli.
 src/
   pages/admin/           Dashboard, Arizalar, Ariza, Bo‘limlar, Davomat, Xodimlar va talabalar, Odam,
                          Qurilmalar, Kirish-chiqish jurnali, Integratsiya, Audit, Login
-  components/admin/      davr/tur filtrlari, arxiv holati, yangilanish banneri
+  components/admin/      davr/tur filtrlari, arxiv holati, yangilanish banneri, PIN klaviatura, himoyalangan bo‘lim
   components/ui/         Button, Field, Modal, Badge, Pagination, Feedback
   lib/                   api, useApi, desktop, format, image, statuses
 desktop/
-  src/main.js            oyna, menyu, sozlash, yuklab olish
+  src/main.js            oyna, menyu, PIN qurilma kaliti (shifrlangan), yuklab olish
   src/localServer.js     ilova ichidagi interfeys + /api proksi (127.0.0.1)
   src/updater.js         GitHub Releases orqali yangilanish
-  src/setup/             server manzili oynasi
-  scripts/               build-ui.js, run.js
-.github/workflows/desktop-release.yml
+  scripts/               build-ui.js, run.js, release.js
+  ci/desktop-release.yml GitHub Actions namunasi (workflow ruxsati bo‘lsa .github/workflows/ ga ko‘chiring)
 ```

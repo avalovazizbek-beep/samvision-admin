@@ -7,7 +7,12 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('samvisionDesktop', {
   isDesktop: true,
   getInfo: () => ipcRenderer.invoke('app:info'),
-  openSettings: () => ipcRenderer.invoke('app:settings'),
+  // PIN bilan kirish uchun qurilma kaliti (ilovada shifrlangan holda saqlanadi)
+  deviceToken: {
+    get: () => ipcRenderer.invoke('device-token:get'),
+    set: (token) => ipcRenderer.invoke('device-token:set', token),
+    clear: () => ipcRenderer.invoke('device-token:clear'),
+  },
   openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
 
   getUpdateStatus: () => ipcRenderer.invoke('update:status'),

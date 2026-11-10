@@ -1,8 +1,8 @@
 /**
  * Ilova sozlamalari: %APPDATA%\Sam-Vision Admin\settings.json
- *   serverUrl — backend manzili (masalan https://royxat.example.uz yoki http://192.168.1.10:4800)
- *   publicUrl — ro‘yxatdan o‘tish sahifasi manzili (ixtiyoriy, admin paneldagi havola uchun)
- *   bounds    — oyna o‘lchami va joylashuvi
+ *   deviceToken — PIN bilan kirish uchun qurilma kaliti (Windows DPAPI bilan shifrlangan)
+ *   bounds      — oyna o‘lchami va joylashuvi
+ * Server manzili bu yerda emas — u dasturga qotirilgan (package.json → "samvision".serverUrl).
  * Yangilanishda bu fayl saqlanib qoladi (u dastur papkasida emas).
  */
 const fs = require('node:fs');

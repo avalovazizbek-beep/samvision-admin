@@ -6,7 +6,8 @@ import { desktop } from '../../lib/desktop.js';
  * Windows ilovasida yangi versiya haqida xabar:
  *   available   → «Yangi versiya X mavjud» + [Yangilash]
  *   downloading → jarayon foizi
- *   downloaded  → [Qayta ishga tushirish]
+ *   installing  → yangi versiya o‘zi o‘rnatilmoqda, dastur qayta ochiladi (hech narsa bosish shart emas)
+ * Dasturni o‘chirib qayta o‘rnatish kerak emas.
  */
 export default function DesktopUpdateBanner() {
   const [status, setStatus] = useState(null);
@@ -23,11 +24,17 @@ export default function DesktopUpdateBanner() {
 
   if (!desktop || !status || hidden) return null;
   const { state } = status;
-  const show = ['available', 'downloading', 'downloaded'].includes(state) || (status.manual && ['none', 'error'].includes(state)) || state === 'dev';
+  const show = ['available', 'downloading', 'downloaded', 'installing'].includes(state) || (status.manual && ['none', 'error', 'dev'].includes(state));
   if (!show) return null;
 
   const tone =
-    state === 'error' ? 'border-red-200 bg-red-50 text-red-900' : state === 'none' || state === 'dev' ? 'border-slate-200 bg-white text-slate-700' : 'border-brand-200 bg-brand-50 text-brand-900';
+    state === 'error'
+      ? 'border-red-200 bg-red-50 text-red-900'
+      : state === 'none' || state === 'dev'
+        ? 'border-slate-200 bg-white text-slate-700'
+        : state === 'installing'
+          ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+          : 'border-brand-200 bg-brand-50 text-brand-900';
 
   return (
     <div className={`mb-5 flex flex-col gap-3 rounded-2xl border px-4 py-3 text-sm shadow-card sm:flex-row sm:items-center ${tone}`} role="status">
@@ -35,12 +42,14 @@ export default function DesktopUpdateBanner() {
         {state === 'available' && <Sparkles className="h-5 w-5 shrink-0 text-brand-600" />}
         {state === 'downloading' && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-brand-600" />}
         {state === 'downloaded' && <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-600" />}
+        {state === 'installing' && <Loader2 className="h-5 w-5 shrink-0 animate-spin text-emerald-600" />}
         {state === 'error' && <TriangleAlert className="h-5 w-5 shrink-0 text-red-600" />}
         {(state === 'none' || state === 'dev') && <CheckCircle2 className="h-5 w-5 shrink-0 text-slate-400" />}
         <div className="min-w-0">
           {state === 'available' && (
             <p>
-              <b>Yangi versiya {status.version} mavjud.</b> Yangilash dasturni qayta o‘rnatishni talab qilmaydi — sozlamalar saqlanadi.
+              <b>Yangi versiya {status.version} mavjud.</b> «Yangilash» ni bosing — yangi versiya o‘zi yuklanib o‘rnatiladi, dastur qayta
+              ochiladi. Sozlamalar va PIN kod saqlanadi.
             </p>
           )}
           {state === 'downloading' && (
@@ -54,6 +63,11 @@ export default function DesktopUpdateBanner() {
           {state === 'downloaded' && (
             <p>
               <b>Versiya {status.version} tayyor.</b> O‘rnatish uchun dastur qayta ishga tushadi.
+            </p>
+          )}
+          {state === 'installing' && (
+            <p>
+              <b>Versiya {status.version} o‘rnatilmoqda…</b> Dastur bir necha soniyada yopilib, yangi versiyada qayta ochiladi.
             </p>
           )}
           {state === 'error' && <p>Yangilanishni tekshirib bo‘lmadi: {status.message}</p>}
@@ -80,7 +94,7 @@ export default function DesktopUpdateBanner() {
             <RefreshCw className="h-4 w-4" /> Qayta ishga tushirish
           </button>
         )}
-        {state !== 'downloading' && (
+        {!['downloading', 'installing'].includes(state) && (
           <button type="button" onClick={() => setHidden(true)} className="rounded-lg p-1.5 opacity-60 hover:bg-black/5 hover:opacity-100" aria-label="Yopish">
             <X className="h-4 w-4" />
           </button>

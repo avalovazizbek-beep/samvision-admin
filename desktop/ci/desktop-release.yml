@@ -1,0 +1,55 @@
+# NAMUNA. Hozir relizlar kompyuterdan chiqariladi: cd desktop && npm run release
+# GitHub Actions orqali chiqarish kerak bo‘lsa — shu faylni .github/workflows/ ga ko‘chiring
+# (push qilish uchun GitHub tokenida "workflow" ruxsati kerak: gh auth refresh -h github.com -s workflow).
+#
+# Sam-Vision Admin (Windows ilovasi) yangi versiyasini chiqarish.
+#
+# Qanday ishlaydi:
+#   1. desktop/package.json dagi "version" ni oshiring (masalan 1.0.1)
+#   2. git commit -am "Admin ilovasi 1.0.1"
+#   3. git tag v1.0.1 && git push && git push --tags
+# Shu tag push qilinganda GitHub exe'ni yig‘ib, Releases bo‘limiga qo‘yadi.
+# O‘rnatilgan ilovalar uni avtomatik topadi va «Yangilash» tugmasini ko‘rsatadi.
+
+name: Desktop ilovasini chiqarish
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Tag va desktop/package.json versiyasi mosligini tekshirish
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./desktop/package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::Tag v$TAG, lekin desktop/package.json versiyasi $PKG. Ikkalasi bir xil bo‘lishi kerak."
+            exit 1
+          fi
+
+      - name: Admin panel bog‘liqliklari
+        run: npm ci
+
+      - name: Desktop bog‘liqliklari
+        working-directory: desktop
+        run: npm ci
+
+      - name: Exe yig‘ish va GitHub Release'ga chiqarish
+        working-directory: desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run release -- -c.publish.owner=${{ github.repository_owner }} -c.publish.repo=${{ github.event.repository.name }}

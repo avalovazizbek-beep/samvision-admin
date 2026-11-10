@@ -2,10 +2,11 @@
  * Avtomatik yangilanish (electron-updater, GitHub Releases).
  *
  * Ishlash tartibi:
- *  1. Ilova ochilganda (va har 30 daqiqada) GitHub'dagi eng so‘nggi relizni tekshiradi.
- *  2. Yangi versiya bo‘lsa — admin panel tepasida «Yangi versiya mavjud — Yangilash» chiqadi.
- *  3. «Yangilash» → yuklab olinadi (jarayon foizi ko‘rinadi) → «Qayta ishga tushirish» → o‘rnatiladi.
+ *  1. Ilova ochilganda va har 30 daqiqada GitHub'dagi eng so‘nggi relizni tekshiradi.
+ *  2. Yangi versiya bo‘lsa — admin panel tepasida «Yangi versiya mavjud — Yangilash».
+ *  3. «Yangilash» → yuklab olinadi (foizi ko‘rinadi) → o‘zi jimgina o‘rnatiladi → dastur qayta ochiladi.
  *     Dasturni o‘chirib qayta o‘rnatish shart emas; sozlamalar saqlanib qoladi.
+ * Avtomatik tekshiruvdagi xatolar (internet yo‘q va h.k.) foydalanuvchiga ko‘rsatilmaydi.
  */
 const { app, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
@@ -13,6 +14,10 @@ const { autoUpdater } = require('electron-updater');
 let window = null;
 let lastStatus = { state: 'idle' };
 let timer = null;
+let manualCheck = false;
+
+// Relizlar hali umuman yo‘q — bu xato emas, "eng so‘nggi versiya" degani
+const NO_RELEASE = /404|No published versions|Cannot find latest|Unable to find latest version|latest\.yml/i;
 
 function send(status) {
   lastStatus = status;
@@ -21,22 +26,32 @@ function send(status) {
 
 function errorText(err) {
   const msg = String(err?.message ?? err);
-  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|net::/i.test(msg)) return 'Internetga ulanib bo‘lmadi';
-  if (/404|No published versions|Cannot find latest/i.test(msg)) return 'Yangilanishlar serverida reliz topilmadi';
+  if (/ENOTFOUND|ECONNREFUSED|ETIMEDOUT|ECONNRESET|net::/i.test(msg)) return 'Internetga ulanib bo‘lmadi';
   return msg.split('\n')[0].slice(0, 200);
 }
 
+function onError(err) {
+  if (NO_RELEASE.test(String(err?.message ?? err))) {
+    send({ state: 'none', version: app.getVersion(), manual: manualCheck });
+  } else {
+    send({ state: 'error', message: errorText(err), manual: manualCheck });
+  }
+}
+
 async function check({ manual = false } = {}) {
+  manualCheck = manual;
   if (!app.isPackaged) {
-    const s = { state: 'dev', message: 'Ishlab chiqish rejimida yangilanish tekshirilmaydi (faqat o‘rnatilgan exe’da)' };
-    if (manual) send(s);
+    const s = { state: 'dev', message: 'Ishlab chiqish rejimida yangilanish tekshirilmaydi (faqat o‘rnatilgan exe’da)', manual };
+    send(s);
     return s;
   }
+  // Yuklab olinayotgan yoki o‘rnatilayotgan bo‘lsa — qayta tekshirmaymiz
+  if (['downloading', 'installing'].includes(lastStatus.state)) return lastStatus;
   try {
     send({ state: 'checking', manual });
     await autoUpdater.checkForUpdates();
   } catch (err) {
-    send({ state: 'error', message: errorText(err), manual });
+    onError(err);
   }
   return lastStatus;
 }
@@ -50,10 +65,14 @@ function init(win) {
   autoUpdater.on('update-available', (info) =>
     send({ state: 'available', version: info.version, notes: typeof info.releaseNotes === 'string' ? info.releaseNotes : null }),
   );
-  autoUpdater.on('update-not-available', () => send({ state: 'none', version: app.getVersion(), manual: lastStatus.manual }));
+  autoUpdater.on('update-not-available', () => send({ state: 'none', version: app.getVersion(), manual: manualCheck }));
   autoUpdater.on('download-progress', (p) => send({ state: 'downloading', percent: Math.round(p.percent ?? 0), version: lastStatus.version }));
-  autoUpdater.on('update-downloaded', (info) => send({ state: 'downloaded', version: info.version }));
-  autoUpdater.on('error', (err) => send({ state: 'error', message: errorText(err) }));
+  autoUpdater.on('update-downloaded', (info) => {
+    // Yuklab olindi — jimgina o‘rnatib, dasturni qayta ochamiz (foydalanuvchi hech narsa bosmaydi)
+    send({ state: 'installing', version: info.version });
+    setTimeout(() => autoUpdater.quitAndInstall(true, true), 2500);
+  });
+  autoUpdater.on('error', onError);
 
   ipcMain.handle('update:status', () => lastStatus);
   ipcMain.handle('update:check', () => check({ manual: true }));
@@ -64,13 +83,14 @@ function init(win) {
       await autoUpdater.downloadUpdate();
       return { ok: true };
     } catch (err) {
-      send({ state: 'error', message: errorText(err) });
+      manualCheck = true; // foydalanuvchi o‘zi bosgan — xatoni ko‘rsatamiz
+      onError(err);
       return { ok: false };
     }
   });
   ipcMain.handle('update:install', () => {
-    // isSilent=false, isForceRunAfter=true — o‘rnatilgach ilova o‘zi qayta ochiladi
-    setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    send({ state: 'installing', version: lastStatus.version });
+    setImmediate(() => autoUpdater.quitAndInstall(true, true));
     return { ok: true };
   });
 

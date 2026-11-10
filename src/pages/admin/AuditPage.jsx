@@ -9,7 +9,7 @@ import { formatDateTime } from '../../lib/format.js';
 import { AUDIT_LABELS } from '../../lib/statuses.js';
 
 const TONE = (action) =>
-  action.endsWith('ERROR') || action === 'LOGIN_FAILED' || action === 'APPLICATION_REJECTED' || action === 'APPLICATION_DELETED'
+  action.endsWith('ERROR') || action.endsWith('FAILED') || action === 'PIN_LOCKED' || action === 'APPLICATION_REJECTED' || action === 'APPLICATION_DELETED'
     ? 'bg-red-500'
     : action.startsWith('SAMVISION') || action === 'APPLICATION_APPROVED'
       ? 'bg-emerald-500'
@@ -19,7 +19,15 @@ function summary(e) {
   const d = e.details ?? {};
   switch (e.action) {
     case 'LOGIN_FAILED':
+    case 'REAUTH':
+    case 'REAUTH_FAILED':
       return `Login: ${d.username ?? '—'}`;
+    case 'LOGIN':
+      return d.method === 'pin' ? 'PIN kod bilan' : null;
+    case 'PIN_LOGIN_FAILED':
+      return d.attempts ? `${d.attempts}-urinish` : null;
+    case 'PIN_SET':
+      return d.deviceName ?? null;
     case 'APPLICATION_REJECTED':
       return d.reason;
     case 'SAMVISION_SYNC_ERROR':

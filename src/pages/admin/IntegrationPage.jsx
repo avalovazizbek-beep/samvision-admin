@@ -5,7 +5,8 @@ import { PageHeader } from '../../layouts/AdminLayout.jsx';
 import Button from '../../components/ui/Button.jsx';
 import { Alert, ErrorState, PageLoader } from '../../components/ui/Feedback.jsx';
 import { TextInput } from '../../components/ui/Field.jsx';
-import { api, errorMessage, fieldErrors } from '../../lib/api.js';
+import ReauthGate from '../../components/admin/ReauthGate.jsx';
+import { api, deviceStore, errorMessage, fieldErrors } from '../../lib/api.js';
 
 function Row({ label, value, ok }) {
   return (
@@ -34,8 +35,10 @@ function ChangePassword() {
     setSaving(true);
     setErrors({});
     try {
-      await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword });
-      toast.success('Parol almashtirildi');
+      // Shu kompyuterning PIN kodi saqlanib qoladi, boshqa kompyuterlardagilari bekor qilinadi
+      const deviceToken = await deviceStore.get().catch(() => null);
+      const r = await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword, deviceToken });
+      toast.success(r.data.revokedDevices ? `Parol almashtirildi. Boshqa ${r.data.revokedDevices} ta kompyuterdagi PIN kod bekor qilindi` : 'Parol almashtirildi');
       setForm({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
       setErrors(fieldErrors(err));
@@ -63,7 +66,7 @@ function ChangePassword() {
   );
 }
 
-export default function IntegrationPage() {
+function IntegrationContent() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
   const [testing, setTesting] = useState(false);
@@ -196,5 +199,16 @@ export default function IntegrationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function IntegrationPage() {
+  return (
+    <ReauthGate
+      title="Himoyalangan bo‘lim"
+      description="Integratsiya sozlamalari va administrator parolini ko‘rish uchun administrator login va parolini kiriting"
+    >
+      <IntegrationContent />
+    </ReauthGate>
   );
 }

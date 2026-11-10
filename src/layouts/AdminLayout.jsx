@@ -8,6 +8,7 @@ import {
   ExternalLink,
   History,
   LayoutDashboard,
+  Lock,
   LogOut,
   Menu,
   MonitorSmartphone,
@@ -21,8 +22,9 @@ import DesktopUpdateBanner from '../components/admin/DesktopUpdateBanner.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { initials } from '../lib/format.js';
 import { desktop } from '../lib/desktop.js';
+import { api } from '../lib/api.js';
 
-/** Windows ilovasida: versiya, server manzili va yangilanish tugmasi */
+/** Windows ilovasida: versiya va yangilanish tugmasi */
 function DesktopFooter() {
   const [info, setInfo] = useState(null);
   useEffect(() => {
@@ -30,32 +32,28 @@ function DesktopFooter() {
   }, []);
   if (!desktop || !info) return null;
   return (
-    <div className="space-y-1 border-t border-slate-200 px-5 py-2.5 text-[11px] text-slate-400">
-      <p className="truncate" title={info.serverUrl}>
-        Versiya {info.version} · {info.serverUrl.replace(/^https?:\/\//, '')}
-      </p>
-      <div className="flex gap-3">
-        <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={() => desktop.checkForUpdates()}>
-          Yangilanishni tekshirish
-        </button>
-        <button type="button" className="font-semibold text-slate-500 hover:underline" onClick={() => desktop.openSettings()}>
-          Server manzili
-        </button>
-      </div>
+    <div className="flex items-center justify-between gap-2 border-t border-slate-200 px-5 py-2.5 text-[11px] text-slate-400">
+      <span>Versiya {info.version}</span>
+      <button type="button" className="font-semibold text-brand-700 hover:underline" onClick={() => desktop.checkForUpdates()}>
+        Yangilanishni tekshirish
+      </button>
     </div>
   );
 }
 
 /**
- * «Ro‘yxatdan o‘tish sahifasi» havolasi (frontend alohida saytda):
- * brauzerda — VITE_PUBLIC_SITE_URL; Windows ilovasida — ilova sozlamalaridagi manzil.
+ * «Ro‘yxatdan o‘tish sahifasi» havolasi (sayt alohida — Netlify'da):
+ * manzil serverdan olinadi (backend .env → PUBLIC_SITE_URL), bo‘lmasa VITE_PUBLIC_SITE_URL.
  */
 const PUBLIC_SITE_URL = import.meta.env.VITE_PUBLIC_SITE_URL || '';
 
 function PublicPageLink() {
-  const [publicUrl, setPublicUrl] = useState(desktop ? null : PUBLIC_SITE_URL);
+  const [publicUrl, setPublicUrl] = useState(PUBLIC_SITE_URL);
   useEffect(() => {
-    desktop?.getInfo().then((i) => setPublicUrl(i.publicUrl || PUBLIC_SITE_URL)).catch(() => {});
+    api
+      .get('/public/config')
+      .then((r) => r.data.publicSiteUrl && setPublicUrl(r.data.publicSiteUrl))
+      .catch(() => {});
   }, []);
   if (!publicUrl) return null;
   const cls = 'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900';
@@ -96,7 +94,7 @@ const NAV = [
   {
     title: 'Tizim',
     items: [
-      { to: '/admin/integratsiya', label: 'Integratsiya', icon: PlugZap },
+      { to: '/admin/integratsiya', label: 'Integratsiya', icon: PlugZap, locked: true },
       { to: '/admin/jurnal', label: 'Audit jurnali', icon: History },
     ],
   },
@@ -127,7 +125,8 @@ function SidebarContent({ onNavigate }) {
                   }
                 >
                   <item.icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {item.locked && <Lock className="h-3.5 w-3.5 shrink-0 opacity-50" aria-label="himoyalangan" />}
                 </NavLink>
               ))}
             </div>
@@ -150,7 +149,7 @@ function SidebarContent({ onNavigate }) {
             onClick={() => logout()}
             className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
             aria-label="Chiqish"
-            title="Chiqish"
+            title="Chiqish (keyingi safar PIN kod bilan kirasiz)"
           >
             <LogOut className="h-[18px] w-[18px]" />
           </button>

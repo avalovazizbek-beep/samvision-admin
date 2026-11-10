@@ -1,18 +1,21 @@
 /**
  * Sam-Vision Admin — Windows ilovasi (Electron).
  *
- *  - Admin panel interfeysi ilova ichida (ui/), ma'lumotlar esa sozlamalardagi backend serveridan olinadi.
- *  - Birinchi ochilishda server manzili so‘raladi va tekshiriladi.
+ *  - Admin panel interfeysi ilova ichida (ui/), ma'lumotlar esa backend serveridan olinadi.
+ *  - Server manzili dasturga qotirilgan (package.json → "samvision".serverUrl) — foydalanuvchidan so‘ralmaydi.
+ *    Manzil o‘zgarsa, yangi versiya chiqariladi va dastur o‘zi yangilanadi.
  *  - Yangi versiya chiqsa, ilova ichida «Yangilash» taklif qilinadi (updater.js).
  *
  * Buyruq qatori parametrlari (ishlab chiqish uchun):
  *   --dev-url=http://localhost:5180   interfeysni Vite dev serveridan yuklash
- *   --smoke-test --server=URL         oynasiz tekshiruv: interfeys va /api proksi ishlashini tekshirib chiqadi
+ *   --server=URL                      boshqa backend bilan ishlash (masalan http://localhost:4800)
+ *   --smoke-test                      oynasiz tekshiruv: interfeys va /api proksi ishlashini tekshirib chiqadi
  *   --user-data=PAPKA                 sozlamalar papkasini almashtirish (testlar uchun)
  */
 const fs = require('node:fs');
 const path = require('node:path');
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+const os = require('node:os');
+const { app, BrowserWindow, Menu, dialog, ipcMain, safeStorage, shell } = require('electron');
 const settings = require('./settings');
 const { startLocalServer } = require('./localServer');
 const updater = require('./updater');
@@ -29,8 +32,8 @@ if (USER_DATA) app.setPath('userData', path.resolve(USER_DATA));
 
 const UI_DIR = path.join(__dirname, '..', 'ui');
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
-// Standart server manzili (package.json → "samvision"): o‘rnatilgan ilova birinchi ochilishda shunga ulanadi
-const DEFAULTS = require('../package.json').samvision ?? {};
+// Server manzili: package.json → "samvision".serverUrl (faqat ishlab chiqishda --server bilan almashtiriladi)
+const SERVER_URL = settings.normalizeUrl(argValue('server') || require('../package.json').samvision?.serverUrl || '');
 
 app.setAppUserModelId('uz.samvision.admin');
 
@@ -39,99 +42,49 @@ if (!SMOKE && !app.requestSingleInstanceLock()) {
 }
 
 let mainWindow = null;
-let setupWindow = null;
 let local = null;
 let base = null;
 let updaterStarted = false;
 
-/* ------------------------------ Server manzilini tekshirish ------------------------------ */
+/* ------------------------------ PIN uchun qurilma kaliti ------------------------------ */
 
-async function testServer(input) {
-  let serverUrl;
+// Server bergan qurilma kaliti Windows himoyasi (DPAPI) bilan shifrlanib settings.json'da saqlanadi
+function readDeviceToken() {
+  const stored = settings.get().deviceToken;
+  if (!stored) return null;
   try {
-    serverUrl = settings.normalizeUrl(input);
+    if (stored.startsWith('enc:')) return safeStorage.decryptString(Buffer.from(stored.slice(4), 'base64'));
+    return stored.startsWith('raw:') ? stored.slice(4) : null;
   } catch {
-    return { ok: false, message: 'Manzil noto‘g‘ri yozilgan' };
-  }
-  if (!serverUrl) return { ok: false, message: 'Server manzilini kiriting' };
-  try {
-    const r = await fetch(`${serverUrl}/api/health`, { signal: AbortSignal.timeout(8000) });
-    const body = await r.json().catch(() => null);
-    if (!body || typeof body.ok !== 'boolean') {
-      return { ok: false, message: `Bu manzilda Sam-Vision backend topilmadi (HTTP ${r.status})` };
-    }
-    if (!body.ok) return { ok: false, message: 'Server ishlayapti, lekin ma’lumotlar bazasiga ulana olmayapti' };
-    return { ok: true, serverUrl };
-  } catch (err) {
-    return { ok: false, message: `Serverga ulanib bo‘lmadi: ${err.name === 'TimeoutError' ? 'javob kelmadi' : err.message}` };
+    return null;
   }
 }
 
-/* ------------------------------ Sozlash oynasi ------------------------------ */
-
-function openSetup() {
-  if (setupWindow) {
-    setupWindow.focus();
+function writeDeviceToken(token) {
+  if (!token) {
+    settings.set({ deviceToken: null });
     return;
   }
-  setupWindow = new BrowserWindow({
-    width: 580,
-    height: 500,
-    resizable: false,
-    minimizable: false,
-    maximizable: false,
-    title: 'Sam-Vision Admin — server manzili',
-    icon: ICON,
-    parent: mainWindow ?? undefined,
-    modal: Boolean(mainWindow),
-    show: !SMOKE,
-    webPreferences: {
-      preload: path.join(__dirname, 'setup', 'setup-preload.js'),
-      contextIsolation: true,
-      sandbox: true,
-      nodeIntegration: false,
-    },
-  });
-  setupWindow.setMenu(null);
-  setupWindow.loadFile(path.join(__dirname, 'setup', 'setup.html'));
-  setupWindow.on('closed', () => {
-    setupWindow = null;
-    if (!mainWindow && !settings.get().serverUrl) app.quit();
-  });
+  const value = safeStorage.isEncryptionAvailable() ? `enc:${safeStorage.encryptString(String(token)).toString('base64')}` : `raw:${token}`;
+  settings.set({ deviceToken: value });
 }
 
-ipcMain.handle('setup:load', () => {
-  const s = settings.get();
-  return { ...s, serverUrl: s.serverUrl || DEFAULTS.serverUrl || '', publicUrl: s.publicUrl || DEFAULTS.publicUrl || '' };
+ipcMain.handle('device-token:get', () => readDeviceToken());
+ipcMain.handle('device-token:set', (_e, token) => {
+  if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{20,200}$/.test(token)) return false;
+  writeDeviceToken(token);
+  return true;
 });
-ipcMain.handle('setup:test', (_e, url) => testServer(url));
-ipcMain.handle('setup:save', async (_e, data) => {
-  const t = await testServer(data?.serverUrl);
-  if (!t.ok) return t;
-  let publicUrl = '';
-  try {
-    publicUrl = data?.publicUrl ? settings.normalizeUrl(data.publicUrl) : '';
-  } catch {
-    publicUrl = '';
-  }
-  settings.set({ serverUrl: t.serverUrl, publicUrl });
-  // Avval asosiy oyna ochiladi, keyin sozlash oynasi yopiladi (aks holda ilova yopilib qoladi)
-  if (mainWindow) mainWindow.webContents.reload();
-  else await openMain();
-  setupWindow?.close();
-  return { ok: true };
-});
-ipcMain.handle('setup:cancel', () => setupWindow?.close());
+ipcMain.handle('device-token:clear', () => writeDeviceToken(null));
 
 /* ------------------------------ Admin panelga ko‘prik ------------------------------ */
 
 ipcMain.handle('app:info', () => ({
   version: app.getVersion(),
   packaged: app.isPackaged,
-  serverUrl: settings.get().serverUrl ?? '',
-  publicUrl: settings.get().publicUrl ?? '',
+  serverUrl: SERVER_URL,
+  hostname: os.hostname(),
 }));
-ipcMain.handle('app:settings', () => openSetup());
 ipcMain.handle('app:open-external', (_e, url) => {
   if (/^https?:\/\//i.test(String(url))) shell.openExternal(url);
 });
@@ -143,7 +96,6 @@ function buildMenu() {
     {
       label: 'Dastur',
       submenu: [
-        { label: 'Server manzili…', click: () => openSetup() },
         { label: 'Yangilanishlarni tekshirish', click: () => updater.check({ manual: true }) },
         { type: 'separator' },
         { label: 'Chiqish', role: 'quit' },
@@ -172,7 +124,7 @@ function buildMenu() {
               type: 'info',
               title: 'Sam-Vision Admin',
               message: `Sam-Vision Admin ${app.getVersion()}`,
-              detail: `Server: ${settings.get().serverUrl || '—'}\nMa’lumotlar papkasi: ${app.getPath('userData')}`,
+              detail: `Server: ${SERVER_URL || '—'}\nMa’lumotlar papkasi: ${app.getPath('userData')}`,
             }),
         },
       ],
@@ -186,29 +138,12 @@ function buildMenu() {
 let downloadsHooked = false;
 
 async function openMain() {
-  // Birinchi ochilish: standart server manzili ishlasa — so‘ramasdan saqlanadi
-  if (!settings.get().serverUrl && !DEV_URL && DEFAULTS.serverUrl) {
-    const t = await testServer(DEFAULTS.serverUrl);
-    if (t.ok) {
-      let publicUrl = '';
-      try {
-        publicUrl = DEFAULTS.publicUrl ? settings.normalizeUrl(DEFAULTS.publicUrl) : '';
-      } catch {
-        publicUrl = '';
-      }
-      settings.set({ serverUrl: t.serverUrl, publicUrl });
-    }
-  }
-  if (!settings.get().serverUrl && !DEV_URL) {
-    openSetup();
-    return;
-  }
   if (!DEV_URL && !fs.existsSync(path.join(UI_DIR, 'index.html'))) {
     dialog.showErrorBox('Sam-Vision Admin', 'Admin interfeysi topilmadi. Avval "npm run ui" ni bajaring.');
     app.quit();
     return;
   }
-  if (!DEV_URL && !local) local = await startLocalServer({ uiDir: UI_DIR, getServerUrl: () => settings.get().serverUrl });
+  if (!DEV_URL && !local) local = await startLocalServer({ uiDir: UI_DIR, getServerUrl: () => SERVER_URL });
   base = DEV_URL ?? `http://127.0.0.1:${local.port}`;
 
   const b = settings.get().bounds ?? {};
@@ -244,7 +179,6 @@ async function openMain() {
     if (url.startsWith(base)) {
       const rest = url.slice(base.length) || '/';
       if (rest.startsWith('/admin')) mainWindow.loadURL(url);
-      else if (settings.get().publicUrl) shell.openExternal(`${settings.get().publicUrl}${rest}`);
       return { action: 'deny' };
     }
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -288,8 +222,6 @@ async function openMain() {
 /* ------------------------------ Oynasiz tekshiruv (smoke test) ------------------------------ */
 
 async function smoke() {
-  const server = argValue('server');
-  if (server) settings.set({ serverUrl: settings.normalizeUrl(server) });
   await openMain();
   // --smoke-login=login:parol berilsa — proksi orqali POST (login) va fayl yuklab olish ham tekshiriladi
   const login = argValue('smoke-login');
@@ -300,6 +232,15 @@ async function smoke() {
     const health = await fetch('/api/health').then((r) => r.json()).catch((e) => ({ error: String(e) }));
     const info = window.samvisionDesktop ? await window.samvisionDesktop.getInfo() : null;
     const update = window.samvisionDesktop ? await window.samvisionDesktop.checkForUpdates() : null;
+    // PIN qurilma kaliti: shifrlab saqlash → o‘qish → o‘chirish (faqat test papkasida)
+    let deviceToken = null;
+    if (${JSON.stringify(Boolean(USER_DATA))} && window.samvisionDesktop?.deviceToken) {
+      const t = 'T'.repeat(43);
+      const saved = await window.samvisionDesktop.deviceToken.set(t);
+      const read = await window.samvisionDesktop.deviceToken.get();
+      await window.samvisionDesktop.deviceToken.clear();
+      deviceToken = { saved, roundtrip: read === t, cleared: (await window.samvisionDesktop.deviceToken.get()) === null };
+    }
     let auth = null;
     const creds = ${JSON.stringify(login ?? null)};
     if (creds) {
@@ -317,6 +258,7 @@ async function smoke() {
       bridge: typeof window.samvisionDesktop,
       info,
       update,
+      deviceToken,
       health,
       auth,
     };
