@@ -1,0 +1,14 @@
+node_modules/
+dist/
+
+# Windows ilovasi: yig'ilgan interfeys va exe fayllar
+desktop/ui/
+desktop/dist/
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+*.log

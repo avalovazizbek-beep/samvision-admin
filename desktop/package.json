@@ -1,0 +1,67 @@
+{
+  "name": "samvision-admin",
+  "productName": "Sam-Vision Admin",
+  "version": "1.0.0",
+  "description": "Sam-Vision admin paneli — Windows ilovasi (avtomatik yangilanish bilan)",
+  "main": "src/main.js",
+  "author": "Sam-Vision",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "ui": "node scripts/build-ui.js",
+    "start": "npm run ui && node scripts/run.js",
+    "open": "node scripts/run.js",
+    "dev": "node scripts/run.js --dev-url=http://localhost:5180",
+    "smoke": "node scripts/run.js --smoke-test",
+    "dist": "npm run ui && electron-builder --win nsis --publish never",
+    "release": "npm run ui && electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "uz.samvision.admin",
+    "productName": "Sam-Vision Admin",
+    "copyright": "© Sam-Vision",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "ui/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Sam-Vision-Admin-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Sam-Vision Admin",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "avalovazizbek-beep",
+      "repo": "samvision-admin",
+      "releaseType": "release"
+    }
+  }
+}
