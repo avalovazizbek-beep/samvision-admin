@@ -7,6 +7,10 @@
   "author": "Sam-Vision",
   "license": "UNLICENSED",
   "private": true,
+  "samvision": {
+    "serverUrl": "https://tyutorkpi.sies.uz/samvision",
+    "publicUrl": "https://tyutorkpi.sies.uz/samvision/"
+  },
   "scripts": {
     "ui": "node scripts/build-ui.js",
     "start": "npm run ui && node scripts/run.js",

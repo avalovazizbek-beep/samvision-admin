@@ -29,6 +29,8 @@ if (USER_DATA) app.setPath('userData', path.resolve(USER_DATA));
 
 const UI_DIR = path.join(__dirname, '..', 'ui');
 const ICON = path.join(__dirname, '..', 'build', 'icon.png');
+// Standart server manzili (package.json → "samvision"): o‘rnatilgan ilova birinchi ochilishda shunga ulanadi
+const DEFAULTS = require('../package.json').samvision ?? {};
 
 app.setAppUserModelId('uz.samvision.admin');
 
@@ -98,7 +100,10 @@ function openSetup() {
   });
 }
 
-ipcMain.handle('setup:load', () => settings.get());
+ipcMain.handle('setup:load', () => {
+  const s = settings.get();
+  return { ...s, serverUrl: s.serverUrl || DEFAULTS.serverUrl || '', publicUrl: s.publicUrl || DEFAULTS.publicUrl || '' };
+});
 ipcMain.handle('setup:test', (_e, url) => testServer(url));
 ipcMain.handle('setup:save', async (_e, data) => {
   const t = await testServer(data?.serverUrl);
@@ -181,6 +186,19 @@ function buildMenu() {
 let downloadsHooked = false;
 
 async function openMain() {
+  // Birinchi ochilish: standart server manzili ishlasa — so‘ramasdan saqlanadi
+  if (!settings.get().serverUrl && !DEV_URL && DEFAULTS.serverUrl) {
+    const t = await testServer(DEFAULTS.serverUrl);
+    if (t.ok) {
+      let publicUrl = '';
+      try {
+        publicUrl = DEFAULTS.publicUrl ? settings.normalizeUrl(DEFAULTS.publicUrl) : '';
+      } catch {
+        publicUrl = '';
+      }
+      settings.set({ serverUrl: t.serverUrl, publicUrl });
+    }
+  }
   if (!settings.get().serverUrl && !DEV_URL) {
     openSetup();
     return;
