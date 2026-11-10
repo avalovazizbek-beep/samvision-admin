@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Download, Loader2, RefreshCw, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { CheckCircle2, Download, Loader2, PartyPopper, RefreshCw, Sparkles, TriangleAlert, X } from 'lucide-react';
 import { desktop } from '../../lib/desktop.js';
 
 /**
@@ -9,7 +9,43 @@ import { desktop } from '../../lib/desktop.js';
  *   installing  → yangi versiya o‘zi o‘rnatilmoqda, dastur qayta ochiladi (hech narsa bosish shart emas)
  * Dasturni o‘chirib qayta o‘rnatish kerak emas.
  */
+/** Yangilangandan keyingi birinchi ochilishda: «Dastur yangilandi» (bir marta ko‘rsatiladi) */
+let updatedNoticeClosed = false;
+
+function UpdatedNotice() {
+  const [info, setInfo] = useState(null);
+  const [closed, setClosed] = useState(updatedNoticeClosed);
+  useEffect(() => {
+    desktop?.getInfo().then(setInfo).catch(() => {});
+  }, []);
+  if (!desktop || !info?.updatedFrom || closed) return null;
+  const close = () => {
+    updatedNoticeClosed = true;
+    setClosed(true);
+  };
+  return (
+    <div className="mb-5 flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-card" role="status">
+      <PartyPopper className="h-5 w-5 shrink-0 text-emerald-600" />
+      <p className="min-w-0 flex-1">
+        <b>Dastur yangilandi — endi {info.version} versiya.</b> Qayta o‘rnatish kerak bo‘lmadi: sozlamalar va PIN kod saqlandi.
+      </p>
+      <button type="button" onClick={close} className="rounded-lg p-1.5 opacity-60 hover:bg-black/5 hover:opacity-100" aria-label="Yopish">
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function DesktopUpdateBanner() {
+  return (
+    <>
+      <UpdatedNotice />
+      <UpdateStatus />
+    </>
+  );
+}
+
+function UpdateStatus() {
   const [status, setStatus] = useState(null);
   const [hidden, setHidden] = useState(false);
 

@@ -1,7 +1,7 @@
 {
   "name": "samvision-admin",
   "productName": "Sam-Vision Admin",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Sam-Vision admin paneli — Windows ilovasi (avtomatik yangilanish bilan)",
   "main": "src/main.js",
   "author": "Sam-Vision",

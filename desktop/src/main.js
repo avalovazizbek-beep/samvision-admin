@@ -41,6 +41,17 @@ if (!SMOKE && !app.requestSingleInstanceLock()) {
   app.quit();
 }
 
+// Yangilangandan keyingi birinchi ochilish — admin panelda «Dastur yangilandi» xabari chiqadi.
+// 1.0.1 versiya o‘zidan oldingi versiyani yozib qo‘ymagan: sozlamalar fayli bo‘lsa — demak avval ishlatilgan.
+const previous = settings.get();
+const UPDATED_FROM =
+  previous.lastVersion && previous.lastVersion !== app.getVersion()
+    ? previous.lastVersion
+    : !previous.lastVersion && Object.keys(previous).length > 0
+      ? 'oldingi versiya'
+      : null;
+if (previous.lastVersion !== app.getVersion()) settings.set({ lastVersion: app.getVersion() });
+
 let mainWindow = null;
 let local = null;
 let base = null;
@@ -84,6 +95,7 @@ ipcMain.handle('app:info', () => ({
   packaged: app.isPackaged,
   serverUrl: SERVER_URL,
   hostname: os.hostname(),
+  updatedFrom: UPDATED_FROM,
 }));
 ipcMain.handle('app:open-external', (_e, url) => {
   if (/^https?:\/\//i.test(String(url))) shell.openExternal(url);
