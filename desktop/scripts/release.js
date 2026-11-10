@@ -35,9 +35,28 @@ function run(cmd, args, env) {
     process.exit(1);
   }
 
-  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'samvision-release' },
-  });
+  // Internet vaqtincha uzilsa — 3 marta qayta urinamiz
+  let res;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      res = await fetch(`https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`, {
+        headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'User-Agent': 'samvision-release' },
+        signal: AbortSignal.timeout(30000),
+      });
+      break;
+    } catch (err) {
+      console.warn(`• GitHub'ga ulanib bo‘lmadi (${attempt}/3): ${err.cause?.code || err.name}`);
+      if (attempt === 3) {
+        console.error('✖ GitHub (api.github.com) bilan aloqa yo‘q. Internetni tekshirib, birozdan keyin qayta ishga tushiring');
+        process.exit(1);
+      }
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+  }
+  if (res.status === 401) {
+    console.error('✖ GitHub tokeni yaroqsiz: `gh auth login` ni qayta bajaring');
+    process.exit(1);
+  }
   if (res.status === 200) {
     console.error(`✖ ${tag} allaqachon chiqarilgan. desktop/package.json dagi "version" ni oshiring`);
     process.exit(1);
