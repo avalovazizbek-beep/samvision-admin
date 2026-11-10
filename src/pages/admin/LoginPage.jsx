@@ -38,7 +38,7 @@ function PasswordForm() {
   return (
     <>
       <h1 className="text-2xl font-bold text-slate-900">Administrator paneli</h1>
-      <p className="mt-1 text-sm text-slate-500">Login va parol bilan kiring. Keyin shu kompyuter uchun PIN kod o‘rnatasiz</p>
+      <p className="mt-1 text-sm text-slate-500">Login va parol bilan kiring. Keyin shu qurilma uchun PIN kod o‘rnatasiz</p>
 
       {location.state?.reason && !error && (
         <Alert tone="warn" className="mt-5">
@@ -127,7 +127,7 @@ function PinUnlock() {
         <Lock className="h-7 w-7" />
       </div>
       <h1 className="mt-4 text-2xl font-bold text-slate-900">PIN kodni kiriting</h1>
-      <p className="mt-1 text-sm text-slate-500">Shu kompyuter uchun o‘rnatilgan 4 xonali PIN kod</p>
+      <p className="mt-1 text-sm text-slate-500">Shu qurilma uchun o‘rnatilgan 4 xonali PIN kod</p>
       {location.state?.reason && !error && (
         <Alert tone="warn" className="mt-5 text-left">
           {location.state.reason}

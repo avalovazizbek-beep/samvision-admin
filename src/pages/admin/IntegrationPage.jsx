@@ -38,7 +38,7 @@ function ChangePassword() {
       // Shu kompyuterning PIN kodi saqlanib qoladi, boshqa kompyuterlardagilari bekor qilinadi
       const deviceToken = await deviceStore.get().catch(() => null);
       const r = await api.post('/auth/change-password', { currentPassword: form.currentPassword, newPassword: form.newPassword, deviceToken });
-      toast.success(r.data.revokedDevices ? `Parol almashtirildi. Boshqa ${r.data.revokedDevices} ta kompyuterdagi PIN kod bekor qilindi` : 'Parol almashtirildi');
+      toast.success(r.data.revokedDevices ? `Parol almashtirildi. Boshqa ${r.data.revokedDevices} ta qurilmadagi PIN kod bekor qilindi` : 'Parol almashtirildi');
       setForm({ currentPassword: '', newPassword: '', confirm: '' });
     } catch (err) {
       setErrors(fieldErrors(err));
