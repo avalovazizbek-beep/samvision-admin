@@ -1,0 +1,33 @@
+# Netlify: admin panelning veb-versiyasi (telefon yoki boshqa kompyuterdan kirish uchun).
+# Asosiy admin — Windows ilovasi; ikkalasi ham bir xil backend bilan ishlaydi.
+#
+#   Yangilash (kompyuterdan):  npm run deploy
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Backend .env dagi CORS_ORIGINS da shu sayt manzili bo‘lishi shart
+  VITE_API_URL = "https://tyutorkpi.sies.uz/samvision/api"
+
+# React marshrutlari (/admin/...) — hammasi index.html ga
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/admin-assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"

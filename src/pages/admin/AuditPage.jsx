@@ -43,6 +43,7 @@ function summary(e) {
       return d.trackingCode ? `Ariza ${d.trackingCode}` : null;
     case 'DEPARTMENT_CREATED':
     case 'DEPARTMENT_UPDATED':
+    case 'DEPARTMENT_DELETED':
       return d.name ?? null;
     default:
       return null;

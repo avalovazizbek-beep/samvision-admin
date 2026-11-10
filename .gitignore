@@ -12,3 +12,6 @@ desktop/dist/
 .DS_Store
 Thumbs.db
 *.log
+
+# Netlify CLI
+.netlify/

@@ -81,6 +81,7 @@ export const AUDIT_LABELS = {
   DEPARTMENTS_SYNCED: 'Bo‘limlar sinxronlandi',
   DEPARTMENT_CREATED: 'Bo‘lim qo‘shildi',
   DEPARTMENT_UPDATED: 'Bo‘lim tahrirlandi',
+  DEPARTMENT_DELETED: 'Bo‘lim o‘chirildi',
 };
 
 export const FIELD_LABELS = {

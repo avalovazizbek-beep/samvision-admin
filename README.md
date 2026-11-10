@@ -38,7 +38,10 @@ yo‘naltiriladi. `.env` sozlamalari:
 - `VITE_PUBLIC_SITE_URL` — ro‘yxatdan o‘tish sayti havolasi;
 - `VITE_DEV_BACKEND`.
 
-Asosiy admin — Windows ilovasi (pastda). Veb-versiya serverga joylanmagan.
+Asosiy admin — Windows ilovasi (pastda). **Veb-versiya** (telefon yoki boshqa kompyuterdan) — Netlify'da:
+https://samvision-admin.netlify.app — sozlamalar [netlify.toml](netlify.toml), yangilash: `npm run deploy`.
+Backend `.env` dagi `CORS_ORIGINS` da shu manzil bo‘lishi shart. Kirish ham xuddi ilovadagidek: login + parol, so‘ng shu
+brauzer uchun PIN.
 
 ## Windows ilovasi — «Sam-Vision Admin» (`desktop/`)
 

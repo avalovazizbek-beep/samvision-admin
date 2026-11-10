@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Building2, Check, Link2Off, Pencil, Plus, RefreshCw } from 'lucide-react';
+import { Building2, Check, Link2Off, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { PageHeader } from '../../layouts/AdminLayout.jsx';
 import Button from '../../components/ui/Button.jsx';
 import Modal from '../../components/ui/Modal.jsx';
@@ -10,6 +10,55 @@ import { SelectInput, TextInput } from '../../components/ui/Field.jsx';
 import { api, errorMessage, fieldErrors } from '../../lib/api.js';
 import { formatDateTime } from '../../lib/format.js';
 import { AUDIENCES } from '../../lib/statuses.js';
+
+/** Bo‘limni o‘chirish (faqat arizasi yo‘q bo‘limlar) */
+function DeleteModal({ department, onClose, onDeleted }) {
+  const [busy, setBusy] = useState(false);
+  async function remove() {
+    setBusy(true);
+    try {
+      await api.delete(`/admin/departments/${department.id}`);
+      toast.success(`«${department.name}» o‘chirildi`);
+      onDeleted();
+      onClose();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Modal
+      open={Boolean(department)}
+      onClose={onClose}
+      title="Bo‘limni o‘chirish"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>
+            Bekor qilish
+          </Button>
+          <Button variant="danger" icon={Trash2} loading={busy} onClick={remove}>
+            O‘chirish
+          </Button>
+        </>
+      }
+    >
+      {department && (
+        <div className="space-y-3 text-sm text-slate-600">
+          <p>
+            <b className="text-slate-900">«{department.name}»</b> bo‘limi ro‘yxatdan butunlay o‘chiriladi.
+          </p>
+          {department.samvisionId && (
+            <Alert tone="warn">
+              Bu bo‘lim Sam-Vision’da bor — keyingi «Sam-Vision’dan sinxronlash» da u qaytib qo‘shiladi. Formadan olib tashlash uchun
+              «Formada» ni o‘chirish kifoya.
+            </Alert>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
 
 function DepartmentModal({ open, onClose, department, onSaved }) {
   const [name, setName] = useState('');
@@ -90,6 +139,7 @@ export default function DepartmentsPage() {
   const [items, setItems] = useState(null);
   const [error, setError] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   const [editing, setEditing] = useState(null);
   const [toggling, setToggling] = useState(null);
 
@@ -241,6 +291,17 @@ export default function DepartmentsPage() {
                   <Button variant="ghost" size="sm" icon={Pencil} onClick={() => setEditing(d)} aria-label={`${d.name} — tahrirlash`}>
                     <span className="sr-only sm:not-sr-only">Tahrirlash</span>
                   </Button>
+                  {d.applicationsCount === 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDeleting(d)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                      aria-label={`${d.name} — o‘chirish`}
+                      title="O‘chirish"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </li>
             ))}
@@ -248,6 +309,7 @@ export default function DepartmentsPage() {
         )}
       </div>
 
+      <DeleteModal department={deleting} onClose={() => setDeleting(null)} onDeleted={() => load()} />
       <DepartmentModal
         open={editing !== null}
         department={editing?.id ? editing : null}
