@@ -32,13 +32,21 @@ npm run build        # dist/ — serverga joylash uchun
 ```
 
 Serverda `dist/` ni Nginx bilan bering. Namuna backend repo’sida: `deploy/nginx.conf.example`. `/api/` backend’ga
-yo‘naltiriladi. `.env` sozlamalari: `VITE_API_URL` (backend boshqa domenda bo‘lsa), `VITE_PUBLIC_SITE_URL`
-(ro‘yxatdan o‘tish sayti havolasi), `VITE_DEV_BACKEND`.
+yo‘naltiriladi. `.env` sozlamalari:
+- `VITE_BASE_PATH` — mavjud domenga yo‘l ostida joylanganda, masalan `/samvision/`; panel `…/samvision/admin` da ochiladi;
+- `VITE_API_URL` — backend boshqa domenda bo‘lsa;
+- `VITE_PUBLIC_SITE_URL` — ro‘yxatdan o‘tish sayti havolasi;
+- `VITE_DEV_BACKEND`.
+
+Ro‘yxatdan o‘tish sayti bilan bitta yo‘l ostida joylash uchun backend repo’sidagi `deploy/publish-web.sh`
+skriptidan foydalaning. Admin fayllari `admin-assets/` papkasiga yig‘iladi, shuning uchun saytlar bir-biriga
+to‘qnashmaydi.
 
 ## Windows ilovasi — «Sam-Vision Admin» (`desktop/`)
 
-- Birinchi ochilishda **server manzili** so‘raladi va tekshiriladi. Masalan `https://admin.example.uz` — admin sayti
-  `/api` ni backend’ga yo‘naltirganda — yoki `http://192.168.1.10:4800` (backend’ning o‘zi).
+- Birinchi ochilishda **server manzili** so‘raladi va tekshiriladi. Masalan `https://tyutorkpi.sies.uz/samvision`
+  (yo‘l ostida joylanganda), `https://admin.example.uz` yoki `http://192.168.1.10:4800` (backend’ning o‘zi).
+  Ilova `<manzil>/api/...` ga murojaat qiladi.
 - Ilova ochilganda va har 30 daqiqada yangi versiyani tekshiradi. Yangisi bo‘lsa, «**Yangilash**» →
   «**Qayta ishga tushirish**» chiqadi. Qayta o‘rnatish shart emas, sozlamalar saqlanadi.
 

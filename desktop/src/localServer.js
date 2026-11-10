@@ -33,7 +33,9 @@ function proxy(req, res, serverUrl) {
   if (!serverUrl) return sendJson(res, 503, { message: 'Server manzili sozlanmagan', code: 'DESKTOP_NO_SERVER' });
   let target;
   try {
-    target = new URL(req.url, `${serverUrl}/`);
+    // Server manzilida yo‘l bo‘lishi mumkin (https://domen/samvision) — u saqlanib qolishi kerak,
+    // shuning uchun new URL(path, base) emas, oddiy qo‘shish ishlatiladi
+    target = new URL(`${serverUrl.replace(/\/+$/, '')}${req.url}`);
   } catch {
     return sendJson(res, 500, { message: 'Server manzili noto‘g‘ri', code: 'DESKTOP_BAD_SERVER' });
   }
@@ -66,7 +68,7 @@ function serveStatic(req, res, uiDir) {
   const ext = path.extname(file).toLowerCase();
   res.writeHead(200, {
     'Content-Type': MIME[ext] ?? 'application/octet-stream',
-    'Cache-Control': urlPath.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+    'Cache-Control': /^\/(admin-)?assets\//.test(urlPath) ? 'public, max-age=31536000, immutable' : 'no-cache',
     'X-Content-Type-Options': 'nosniff',
   });
   fs.createReadStream(file).pipe(res);

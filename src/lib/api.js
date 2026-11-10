@@ -7,7 +7,8 @@ import axios from 'axios';
 const TOKEN_KEY = 'sv_admin_token';
 
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api',
+  // Standart: panel bilan bir joyda — "/api" yoki yo‘l ostida "/samvision/api"
+  baseURL: import.meta.env.VITE_API_URL || `${import.meta.env.BASE_URL}api`,
   timeout: 60000,
 });
 
